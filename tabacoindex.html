@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>喫煙トラッカー</title>
+  <meta name="description" content="1日の喫煙本数・費用・健康リスクを管理するWebアプリ">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #ffffff;
+      --bg2: #f5f5f3;
+      --bg3: #eeede9;
+      --text: #1a1a18;
+      --text2: #6b6b67;
+      --text3: #9e9e9a;
+      --border: rgba(0,0,0,0.10);
+      --border2: rgba(0,0,0,0.18);
+      --radius-md: 8px;
+      --radius-lg: 12px;
+      --font: -apple-system, 'Hiragino Sans', 'Yu Gothic', sans-serif;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1a1a18;
+        --bg2: #252523;
+        --bg3: #2e2e2b;
+        --text: #f0efea;
+        --text2: #a0a09c;
+        --text3: #6b6b67;
+        --border: rgba(255,255,255,0.10);
+        --border2: rgba(255,255,255,0.18);
+      }
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .app {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 1.5rem 1rem 5rem;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+
+    .header h1 {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text3);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .tab-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 1.5rem;
+    }
+
+    .tab {
+      padding: 7px 16px;
+      border-radius: 50px;
+      font-size: 13px;
+      cursor: pointer;
+      border: 0.5px solid var(--border2);
+      color: var(--text2);
+      background: transparent;
+      transition: all 0.15s;
+      font-family: var(--font);
+    }
+
+    .tab.active {
+      background: var(--text);
+      color: var(--bg);
+      border-color: var(--text);
+    }
+
+    /* Counter */
+    .big-counter {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 1rem 0 0.5rem;
+    }
+
+    .counter-ring {
+      position: relative;
+      width: 190px;
+      height: 190px;
+    }
+
+    .counter-ring svg {
+      transform: rotate(-90deg);
+    }
+
+    .counter-center {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+    }
+
+    .counter-num {
+      font-size: 56px;
+      font-weight: 500;
+      color: var(--text);
+      line-height: 1;
+    }
+
+    .counter-label {
+      font-size: 13px;
+      color: var(--text2);
+      margin-top: 4px;
+    }
+
+    .time-since {
+      text-align: center;
+      font-size: 12px;
+      color: var(--text3);
+      margin: 0.25rem 0 1rem;
+      min-height: 18px;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-bottom: 0.75rem;
+    }
+
+    .btn-add {
+      background: var(--text);
+      color: var(--bg);
+      border: none;
+      border-radius: 50px;
+      padding: 13px 36px;
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity 0.15s;
+      font-family: var(--font);
+    }
+
+    .btn-add:hover { opacity: 0.75; }
+    .btn-add:active { opacity: 0.6; transform: scale(0.98); }
+
+    .btn-sub {
+      background: transparent;
+      color: var(--text2);
+      border: 0.5px solid var(--border2);
+      border-radius: 50px;
+      padding: 13px 22px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.15s;
+      font-family: var(--font);
+    }
+
+    .btn-sub:hover { background: var(--bg2); }
+
+    .btn-link {
+      background: none;
+      border: none;
+      color: var(--text3);
+      font-size: 12px;
+      cursor: pointer;
+      text-decoration: underline;
+      font-family: var(--font);
+      display: block;
+      margin: 0 auto;
+    }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: var(--text3);
+      margin: 1.75rem 0 0.75rem;
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .stat-card {
+      background: var(--bg2);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+    }
+
+    .stat-val {
+      font-size: 22px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .stat-lbl {
+      font-size: 12px;
+      color: var(--text2);
+      margin-top: 3px;
+    }
+
+    .stat-sub {
+      font-size: 11px;
+      color: var(--text3);
+      margin-top: 2px;
+    }
+
+    /* Health bars */
+    .danger-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .danger-icon {
+      width: 30px;
+      height: 30px;
+      border-radius: 7px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .danger-text { flex: 1; }
+
+    .danger-name {
+      font-size: 13px;
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .danger-desc {
+      font-size: 11px;
+      color: var(--text2);
+      margin-top: 2px;
+      line-height: 1.5;
+    }
+
+    .danger-meter {
+      height: 4px;
+      background: var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 7px;
+    }
+
+    .danger-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.5s ease;
+    }
+
+    /* Settings */
+    .setup-box {
+      background: var(--bg2);
+      border-radius: var(--radius-lg);
+      padding: 4px 16px;
+    }
+
+    .setup-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 0.5px solid var(--border);
+    }
+
+    .setup-row:last-child { border-bottom: none; }
+
+    .setup-key {
+      font-size: 14px;
+      color: var(--text2);
+    }
+
+    .setup-val {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .setup-input {
+      background: var(--bg3);
+      border: 0.5px solid var(--border2);
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 14px;
+      color: var(--text);
+      width: 80px;
+      text-align: right;
+      font-family: var(--font);
+      outline: none;
+    }
+
+    .setup-input:focus {
+      border-color: var(--text2);
+    }
+
+    .setup-unit {
+      font-size: 13px;
+      color: var(--text3);
+      min-width: 20px;
+    }
+
+    /* History */
+    .history-wrap {
+      background: var(--bg2);
+      border-radius: var(--radius-md);
+      padding: 4px 16px;
+    }
+
+    .history-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 0.5px solid var(--border);
+    }
+
+    .history-row:last-child { border-bottom: none; }
+
+    .history-date {
+      font-size: 12px;
+      color: var(--text2);
+      width: 36px;
+    }
+
+    .history-bar-wrap {
+      flex: 1;
+      margin: 0 12px;
+    }
+
+    .history-bar {
+      height: 3px;
+      background: var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .history-fill {
+      height: 100%;
+      border-radius: 3px;
+      background: var(--text2);
+    }
+
+    .history-count {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      width: 30px;
+      text-align: right;
+    }
+
+    /* Advice */
+    .advice-box {
+      background: var(--bg2);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      font-size: 13px;
+      color: var(--text2);
+      line-height: 1.7;
+    }
+
+    .advice-box strong {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .danger-tag {
+      display: inline-block;
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 50px;
+      margin-bottom: 10px;
+      font-weight: 500;
+    }
+
+    .tag-ok { background: #eaf3de; color: #3b6d11; }
+    .tag-caution { background: #faeeda; color: #854f0b; }
+    .tag-warning { background: #faece7; color: #993c1d; }
+    .tag-danger { background: #fcebeb; color: #a32d2d; }
+
+    @media (prefers-color-scheme: dark) {
+      .tag-ok { background: #17340a; color: #c0dd97; }
+      .tag-caution { background: #412402; color: #fac775; }
+      .tag-warning { background: #4a1b0c; color: #f0997b; }
+      .tag-danger { background: #501313; color: #f09595; }
+    }
+
+    .btn-danger {
+      background: transparent;
+      color: #a32d2d;
+      border: 0.5px solid rgba(163,45,45,0.3);
+      border-radius: 6px;
+      padding: 6px 14px;
+      font-size: 12px;
+      cursor: pointer;
+      font-family: var(--font);
+    }
+
+    .btn-danger:hover { background: rgba(163,45,45,0.08); }
+
+    .goal-note {
+      text-align: center;
+      font-size: 11px;
+      color: var(--text3);
+      margin-top: -0.25rem;
+      margin-bottom: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <h1>喫煙トラッカー</h1>
+  </div>
+
+  <div class="tab-row">
+    <button class="tab active" onclick="switchTab('today')">今日</button>
+    <button class="tab" onclick="switchTab('stats')">統計</button>
+    <button class="tab" onclick="switchTab('health')">健康</button>
+    <button class="tab" onclick="switchTab('settings')">設定</button>
+  </div>
+
+  <!-- TODAY -->
+  <div id="tab-today">
+    <div class="big-counter">
+      <div class="counter-ring">
+        <svg width="190" height="190" viewBox="0 0 190 190" aria-hidden="true">
+          <circle cx="95" cy="95" r="82" fill="none" stroke="var(--border)" stroke-width="9"/>
+          <circle id="ring-fill" cx="95" cy="95" r="82" fill="none" stroke="var(--text)" stroke-width="9"
+            stroke-dasharray="515" stroke-dashoffset="515" stroke-linecap="round"
+            style="transition: stroke-dashoffset 0.4s ease, stroke 0.3s ease;"/>
+        </svg>
+        <div class="counter-center">
+          <div class="counter-num" id="today-count">0</div>
+          <div class="counter-label">本 / 今日</div>
+        </div>
+      </div>
+    </div>
+    <div class="goal-note" id="goal-note"></div>
+    <div class="time-since" id="time-since">まだ今日は吸っていません</div>
+
+    <div class="btn-row">
+      <button class="btn-sub" onclick="addCig(-1)">－1</button>
+      <button class="btn-add" onclick="addCig(1)">＋1本 吸った</button>
+    </div>
+    <div style="text-align:center;">
+      <button class="btn-link" onclick="resetToday()">今日のカウントをリセット</button>
+    </div>
+
+    <div class="section-label">本日の集計</div>
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-val" id="today-cost">¥0</div>
+        <div class="stat-lbl">今日の費用</div>
+        <div class="stat-sub" id="today-cost-sub">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" id="today-time">0 分</div>
+        <div class="stat-lbl">喫煙時間（概算）</div>
+        <div class="stat-sub">1本 約5分として</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" id="today-tar">0 mg</div>
+        <div class="stat-lbl">タール摂取量</div>
+        <div class="stat-sub">1本 約10mgとして</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" id="today-nico">0 mg</div>
+        <div class="stat-lbl">ニコチン摂取量</div>
+        <div class="stat-sub">1本 約1mgとして</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div id="tab-stats" style="display:none;">
+    <div class="section-label">累計データ</div>
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-val" id="total-cost">¥0</div>
+        <div class="stat-lbl">記録開始からの総費用</div>
+        <div class="stat-sub" id="total-days-lbl">0日間</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" id="yearly-cost">¥0</div>
+        <div class="stat-lbl">年間換算費用</div>
+        <div class="stat-sub">現在のペースで</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" id="avg-per-day">0本</div>
+        <div class="stat-lbl">1日平均</div>
+        <div class="stat-sub">記録期間中</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" id="total-cigs">0本</div>
+        <div class="stat-lbl">総本数</div>
+        <div class="stat-sub" id="total-packs-lbl">0箱分</div>
+      </div>
+    </div>
+
+    <div class="section-label">過去7日間</div>
+    <div class="history-wrap" id="history-list"></div>
+  </div>
+
+  <!-- HEALTH -->
+  <div id="tab-health" style="display:none;">
+    <div class="section-label">健康リスク指数（今日の本数ベース）</div>
+    <div id="health-bars"></div>
+    <div class="section-label">アドバイス</div>
+    <div class="advice-box" id="advice-text">データを記録すると、アドバイスが表示されます。</div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div id="tab-settings" style="display:none;">
+    <div class="section-label">タバコの情報</div>
+    <div class="setup-box">
+      <div class="setup-row">
+        <span class="setup-key">1箱の値段</span>
+        <div class="setup-val">
+          <input class="setup-input" type="number" id="set-price" value="580" min="100" max="3000" oninput="saveSettings()">
+          <span class="setup-unit">円</span>
+        </div>
+      </div>
+      <div class="setup-row">
+        <span class="setup-key">1箱の本数</span>
+        <div class="setup-val">
+          <input class="setup-input" type="number" id="set-perpack" value="20" min="10" max="30" oninput="saveSettings()">
+          <span class="setup-unit">本</span>
+        </div>
+      </div>
+      <div class="setup-row">
+        <span class="setup-key">1日の目標上限</span>
+        <div class="setup-val">
+          <input class="setup-input" type="number" id="set-goal" value="20" min="1" max="60" oninput="saveSettings()">
+          <span class="setup-unit">本</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label">データ管理</div>
+    <div class="setup-box">
+      <div class="setup-row">
+        <span class="setup-key">全履歴を削除</span>
+        <div class="setup-val">
+          <button class="btn-danger" onclick="clearAll()">削除する</button>
+        </div>
+      </div>
+    </div>
+
+    <p style="font-size:11px; color:var(--text3); margin-top:1rem; line-height:1.6;">
+      データはこのブラウザのローカルストレージに保存されます。<br>
+      他のデバイスとは同期されません。
+    </p>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'smk_v2';
+let state = loadState();
+let timerID = null;
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch(e) {}
+  return { history: {}, settings: { price: 580, perpack: 20, goal: 20 }, lastSmoked: null };
+}
+
+function saveState() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e) {}
+}
+
+function today() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function getTodayCount() {
+  return state.history[today()] || 0;
+}
+
+function getSettings() {
+  return Object.assign({ price: 580, perpack: 20, goal: 20 }, state.settings);
+}
+
+function addCig(n) {
+  const d = today();
+  state.history[d] = Math.max(0, (state.history[d] || 0) + n);
+  if (n > 0) state.lastSmoked = Date.now();
+  saveState();
+  render();
+}
+
+function resetToday() {
+  if (confirm('今日のカウントをリセットしますか？')) {
+    state.history[today()] = 0;
+    state.lastSmoked = null;
+    saveState();
+    render();
+  }
+}
+
+function clearAll() {
+  if (confirm('全データを削除しますか？この操作は取り消せません。')) {
+    state = { history: {}, settings: state.settings, lastSmoked: null };
+    saveState();
+    render();
+  }
+}
+
+function saveSettings() {
+  const p = parseInt(document.getElementById('set-price').value) || 580;
+  const pp = parseInt(document.getElementById('set-perpack').value) || 20;
+  const g = parseInt(document.getElementById('set-goal').value) || 20;
+  state.settings = { price: p, perpack: pp, goal: g };
+  saveState();
+  render();
+}
+
+function timeSinceText() {
+  if (!state.lastSmoked) return 'まだ今日は吸っていません';
+  const mins = Math.floor((Date.now() - state.lastSmoked) / 60000);
+  if (mins < 1) return '今吸いました';
+  if (mins < 60) return `最後に吸ってから ${mins} 分`;
+  const h = Math.floor(mins / 60), m = mins % 60;
+  return `最後に吸ってから ${h} 時間 ${m > 0 ? m + ' 分' : ''}`;
+}
+
+function render() {
+  const cnt = getTodayCount();
+  const s = getSettings();
+  const cpc = s.price / s.perpack;
+
+  document.getElementById('today-count').textContent = cnt;
+
+  const pct = Math.min(cnt / s.goal, 1);
+  const circ = 2 * Math.PI * 82;
+  const offset = circ * (1 - pct);
+  const ring = document.getElementById('ring-fill');
+  ring.setAttribute('stroke-dasharray', circ.toFixed(1));
+  ring.setAttribute('stroke-dashoffset', offset.toFixed(1));
+  ring.style.stroke = pct >= 1 ? '#E24B4A' : 'var(--text)';
+
+  document.getElementById('goal-note').textContent = `目標 ${s.goal}本 — あと ${Math.max(0, s.goal - cnt)}本`;
+  document.getElementById('time-since').textContent = timeSinceText();
+
+  document.getElementById('today-cost').textContent = '¥' + Math.round(cnt * cpc).toLocaleString();
+  document.getElementById('today-cost-sub').textContent = `1本 ¥${cpc.toFixed(1)}`;
+  document.getElementById('today-time').textContent = (cnt * 5) + ' 分';
+  document.getElementById('today-tar').textContent = (cnt * 10) + ' mg';
+  document.getElementById('today-nico').textContent = cnt + ' mg';
+
+  const allDays = Object.keys(state.history).filter(k => state.history[k] > 0);
+  const totalCigs = Object.values(state.history).reduce((a, b) => a + b, 0);
+  const numDays = Math.max(allDays.length, 1);
+  const avgPerDay = totalCigs / numDays;
+  const totalCost = totalCigs * cpc;
+  const yearlyCost = avgPerDay * 365 * cpc;
+
+  document.getElementById('total-cost').textContent = '¥' + Math.round(totalCost).toLocaleString();
+  document.getElementById('total-days-lbl').textContent = allDays.length + '日間の記録';
+  document.getElementById('yearly-cost').textContent = '¥' + Math.round(yearlyCost).toLocaleString();
+  document.getElementById('avg-per-day').textContent = avgPerDay.toFixed(1) + '本';
+  document.getElementById('total-cigs').textContent = totalCigs + '本';
+  document.getElementById('total-packs-lbl').textContent = (totalCigs / s.perpack).toFixed(1) + '箱分';
+
+  const recent7 = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    const label = i === 0 ? '今日' : i === 1 ? '昨日' : (d.getMonth()+1) + '/' + d.getDate();
+    recent7.push({ label, count: state.history[key] || 0 });
+  }
+  const maxR = Math.max(...recent7.map(r => r.count), 1);
+  document.getElementById('history-list').innerHTML = recent7.map(r => `
+    <div class="history-row">
+      <span class="history-date">${r.label}</span>
+      <div class="history-bar-wrap">
+        <div class="history-bar">
+          <div class="history-fill" style="width:${Math.round(r.count / maxR * 100)}%"></div>
+        </div>
+      </div>
+      <span class="history-count">${r.count}本</span>
+    </div>`).join('');
+
+  renderHealth(cnt);
+  renderSettings();
+}
+
+function renderHealth(cnt) {
+  const risks = [
+    { name: '心臓・循環器リスク', icon: '♥', level: Math.min(cnt / 40, 1), color: '#E24B4A', desc: '喫煙は心臓病・脳卒中のリスクを2〜4倍高めます。血管が収縮し血圧が上昇します。' },
+    { name: '肺がんリスク', icon: '◉', level: Math.min(cnt / 30, 1), color: '#BA7517', desc: '肺がんの約85%は喫煙が原因とされています。1日の本数が多いほどリスクは高まります。' },
+    { name: 'COPD・気管支炎リスク', icon: '⊕', level: Math.min(cnt / 35, 1), color: '#533AB7', desc: '慢性閉塞性肺疾患(COPD)の主要な原因。息切れや慢性的な咳につながります。' },
+    { name: '血圧・血管への影響', icon: '↑', level: Math.min(cnt / 20, 1), color: '#3b6d11', desc: '1本吸うたびに血圧が一時的に上昇。動脈硬化のリスクが積み重なっていきます。' },
+  ];
+
+  document.getElementById('health-bars').innerHTML = risks.map(r => `
+    <div class="danger-row">
+      <div class="danger-icon" style="background:${r.color}18; color:${r.color};">${r.icon}</div>
+      <div class="danger-text">
+        <div class="danger-name">${r.name}</div>
+        <div class="danger-desc">${r.desc}</div>
+        <div class="danger-meter">
+          <div class="danger-fill" style="width:${Math.round(r.level * 100)}%; background:${r.color};"></div>
+        </div>
+      </div>
+    </div>`).join('');
+
+  let tag = '', advice = '';
+  if (cnt === 0) {
+    tag = '<span class="danger-tag tag-ok">今日はゼロ本！</span>';
+    advice = '<strong>素晴らしい！</strong>今日はまだゼロ本です。このまま続けましょう。禁煙すると20分後から体は回復を始めます。吸いたくなったら深呼吸・水を飲む・別の行動に置き換えてみてください。';
+  } else if (cnt <= 5) {
+    tag = '<span class="danger-tag tag-ok">少ない</span>';
+    advice = `今日は <strong>${cnt}本</strong> です。比較的少ない方ですが、1本でもリスクはゼロではありません。次に吸いたくなった時、5分だけ別のことをしてみましょう。それだけで衝動が収まることが多いです。`;
+  } else if (cnt <= 15) {
+    tag = '<span class="danger-tag tag-caution">注意</span>';
+    advice = `今日は <strong>${cnt}本</strong> です。平均的な喫煙者の本数に近づいています。ニコチン依存が強まっている可能性があります。まず「1日1本だけ減らす」ことから始めると習慣が変わりやすいです。`;
+  } else if (cnt <= 25) {
+    tag = '<span class="danger-tag tag-warning">やや多い</span>';
+    advice = `今日は <strong>${cnt}本</strong> です。健康への影響が出やすい本数です。ニコチンパッチや禁煙ガムの活用も選択肢のひとつです。費用も積み重なっています。統計タブで年間費用を確認してみてください。`;
+  } else {
+    tag = '<span class="danger-tag tag-danger">多い</span>';
+    advice = `今日は <strong>${cnt}本</strong> です。体への負担が大きくなっています。禁煙外来への相談をおすすめします。保険適用で治療が受けられる場合があります。今すぐ全部やめるのが難しければ、まず「今日より1本少なくする」ことを目標にしてみてください。`;
+  }
+
+  document.getElementById('advice-text').innerHTML = tag + advice;
+}
+
+function renderSettings() {
+  const s = getSettings();
+  document.getElementById('set-price').value = s.price;
+  document.getElementById('set-perpack').value = s.perpack;
+  document.getElementById('set-goal').value = s.goal;
+}
+
+function switchTab(tab) {
+  ['today', 'stats', 'health', 'settings'].forEach(t => {
+    document.getElementById('tab-' + t).style.display = t === tab ? '' : 'none';
+  });
+  document.querySelectorAll('.tab').forEach((el, i) => {
+    const tabs = ['today', 'stats', 'health', 'settings'];
+    el.classList.toggle('active', tabs[i] === tab);
+  });
+}
+
+render();
+
+if (timerID) clearInterval(timerID);
+timerID = setInterval(() => {
+  if (state.lastSmoked) {
+    document.getElementById('time-since').textContent = timeSinceText();
+  }
+}, 30000);
+</script>
+</body>
+</html>
