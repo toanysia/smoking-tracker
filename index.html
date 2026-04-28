@@ -22,19 +22,6 @@
       --font: -apple-system, 'Hiragino Sans', 'Yu Gothic', sans-serif;
     }
 
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --bg: #1a1a18;
-        --bg2: #252523;
-        --bg3: #2e2e2b;
-        --text: #f0efea;
-        --text2: #a0a09c;
-        --text3: #6b6b67;
-        --border: rgba(255,255,255,0.10);
-        --border2: rgba(255,255,255,0.18);
-      }
-    }
-
     body {
       font-family: var(--font);
       background: var(--bg);
@@ -551,7 +538,7 @@
       <div class="setup-row">
         <span class="setup-key">1日の目標上限</span>
         <div class="setup-val">
-          <input class="setup-input" type="number" id="set-goal" value="20" min="1" max="60" oninput="saveSettings()">
+          <input class="setup-input" type="number" id="set-goal" value="20" min="1" oninput="saveSettings()">
           <span class="setup-unit">本</span>
         </div>
       </div>
@@ -653,13 +640,30 @@ function render() {
 
   document.getElementById('today-count').textContent = cnt;
 
+  // 本数による数字の色変化: 0-5本=白(薄グレー), 6-10本=黒, 11本以上=赤
+  const numEl = document.getElementById('today-count');
+  if (cnt <= 5) {
+    numEl.style.color = '#c0bfbb'; // 白ベースで薄いグレー
+  } else if (cnt <= 10) {
+    numEl.style.color = '#1a1a18'; // 黒
+  } else {
+    numEl.style.color = '#E24B4A'; // 赤
+  }
+
   const pct = Math.min(cnt / s.goal, 1);
   const circ = 2 * Math.PI * 82;
   const offset = circ * (1 - pct);
   const ring = document.getElementById('ring-fill');
   ring.setAttribute('stroke-dasharray', circ.toFixed(1));
   ring.setAttribute('stroke-dashoffset', offset.toFixed(1));
-  ring.style.stroke = pct >= 1 ? '#E24B4A' : 'var(--text)';
+  // リングの色も同様に変化
+  if (cnt <= 5) {
+    ring.style.stroke = '#c0bfbb';
+  } else if (cnt <= 10) {
+    ring.style.stroke = '#1a1a18';
+  } else {
+    ring.style.stroke = '#E24B4A';
+  }
 
   document.getElementById('goal-note').textContent = `目標 ${s.goal}本 — あと ${Math.max(0, s.goal - cnt)}本`;
   document.getElementById('time-since').textContent = timeSinceText();
