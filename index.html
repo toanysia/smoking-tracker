@@ -525,21 +525,21 @@
       <div class="setup-row">
         <span class="setup-key">1箱の値段</span>
         <div class="setup-val">
-          <input class="setup-input" type="number" id="set-price" value="580" min="100" max="3000" oninput="saveSettings()" onfocus="this.select()">
+          <input class="setup-input" type="text" inputmode="numeric" id="set-price" value="580" oninput="saveSettings()" onclick="this.select()" onfocus="this.select()">
           <span class="setup-unit">円</span>
         </div>
       </div>
       <div class="setup-row">
         <span class="setup-key">1箱の本数</span>
         <div class="setup-val">
-          <input class="setup-input" type="number" id="set-perpack" value="20" min="10" max="30" oninput="saveSettings()" onfocus="this.select()">
+          <input class="setup-input" type="text" inputmode="numeric" id="set-perpack" value="20" oninput="saveSettings()" onclick="this.select()" onfocus="this.select()">
           <span class="setup-unit">本</span>
         </div>
       </div>
       <div class="setup-row">
         <span class="setup-key">1日の目標上限</span>
         <div class="setup-val">
-          <input class="setup-input" type="number" id="set-goal" value="20" min="1" oninput="saveSettings()" onfocus="this.select()">
+          <input class="setup-input" type="text" inputmode="numeric" id="set-goal" value="20" oninput="saveSettings()" onclick="this.select()" onfocus="this.select()">
           <span class="setup-unit">本</span>
         </div>
       </div>
@@ -617,6 +617,11 @@ function clearAll() {
 }
 
 function saveSettings() {
+  // 数字以外を除去
+  ['set-price','set-perpack','set-goal'].forEach(id => {
+    const el = document.getElementById(id);
+    el.value = el.value.replace(/[^0-9]/g, '');
+  });
   const p = parseInt(document.getElementById('set-price').value) || 580;
   const pp = parseInt(document.getElementById('set-perpack').value) || 20;
   const g = parseInt(document.getElementById('set-goal').value) || 20;
@@ -760,9 +765,13 @@ function renderHealth(cnt) {
 
 function renderSettings() {
   const s = getSettings();
-  document.getElementById('set-price').value = s.price;
-  document.getElementById('set-perpack').value = s.perpack;
-  document.getElementById('set-goal').value = s.goal;
+  // フォーカス中の入力欄は上書きしない（入力途中を消さないため）
+  const ids = ['set-price','set-perpack','set-goal'];
+  const vals = [s.price, s.perpack, s.goal];
+  ids.forEach((id, i) => {
+    const el = document.getElementById(id);
+    if (document.activeElement !== el) el.value = vals[i];
+  });
 }
 
 function switchTab(tab) {
